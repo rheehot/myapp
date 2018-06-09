@@ -30,13 +30,31 @@
 //    return $foo;
 //})->where('foo','[0-9a-zA-Z]{3}');
 
-Route::get('/', [
-    'as' => 'home',
-    function() {
-        return '제 이름은 "home" 입니다';
-    }
-]);
+//Route::get('/', [
+//    'as' => 'home',
+//    function() {
+//        return '제 이름은 "home" 입니다';
+//    }
+//]);
+//
+//Route::get('/home', function () {
+//    return redirect(route('home'));
+//});
 
-Route::get('/home', function () {
-    return redirect(route('home'));
+//Route::get('/', function () {
+//    return view('welcome')->with('name','Foo');
+//});
+
+//Route::get('/', function () {
+//    return view('welcome')->with([
+//        'name'=>'foo',
+//        'greeting' => '안녕하세요?',
+//    ]);
+//});
+
+Route::get('/', function () {
+    return view('welcome',[
+        'name' =>'Foo',
+        'greeting' => '안녕하세요?',
+    ]);
 });
