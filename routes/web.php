@@ -59,7 +59,10 @@
 //    ]);
 //});
 
-Route::get('/', function () {
-    $items = ['apple', 'banana', 'tomato'];
-    return view('welcome', ['items' => $items]);
-});
+//Route::get('/', function () {
+//    $items = ['apple', 'banana', 'tomato'];
+//    return view('welcome', ['items' => $items]);
+//});
+
+Route::get('/', 'WelcomeController@index');
+Route::resource('articles', 'ArticlesController');
