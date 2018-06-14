@@ -22,7 +22,7 @@ class ArticlesController extends Controller
 
         $articles = \App\Article::latest()->paginate(3);
 
-        dd(view('articles.index', compact('articles'))->render());
+//        dd(view('articles.index', compact('articles'))->render());
 
         return view('articles.index', compact('articles'));
 
