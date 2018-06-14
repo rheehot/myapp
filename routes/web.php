@@ -64,7 +64,6 @@
 //    return view('welcome', ['items' => $items]);
 //});
 
-Route::get('/', 'WelcomeController@index');
 //Route::resource('articles', 'ArticlesController');
 
 Route::get('auth/login', function () {
@@ -101,12 +100,21 @@ Route::get('auth/logout', function () {
 //Route::get('/home', 'HomeController@index');
 //
 //Route::get('password/remind', 'Auth\PasswordController@getEmail');
+Route::get('/', 'WelcomeController@index');
+
 Auth::routes();
 
-Route::get('/home', 'HomeController@index')->name('home');
+//Event::listen('articles.created', function($article) {
+//    var_dump('이벤트를 받았습니다. 받은 데이터(상태)는 다음과 같습니다.');
+//    var_dump($article->toArray());
+//});
 
-Route::resource('articles', 'ArticlesController');
+
+Route::auth();
 
 //DB::listen(function($query){
 //    var_dump($query->sql);
 //});
+
+Route::get('/home', 'HomeController@index');
+Route::resource('articles', 'ArticlesController');
