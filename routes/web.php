@@ -128,6 +128,7 @@ Route::get('mail', function () {
         compact('article'),
         function ($message) use ($article) {
             $message->to('jowlee@naver.com');
+            $message->to('jowlee@naver.com');
             $message->subject(sprintf('새 글이 등록되었습니다 - %s', $article->title));
         }
     );
@@ -161,4 +162,19 @@ Route::get('mail', function () {
 //            $message->subject(sprintf('새 글이 등록되었습니다 - %s', $article->title));
 //        }
 //    );
+
+Route::get('markdown', function () {
+    $text =<<<EOT
+**Note** To make lists look nice, you can wrap items with hanging indents:
+
+    -   Lorem ipsum dolor sit amet, consectetuer adipiscing elit.
+        Aliquam hendrerit mi posuere lectus. Vestibulum enim wisi,
+        viverra nec, fringilla in, laoreet vitae, risus.
+    -   Donec sit amet nisl. Aliquam semper ipsum sit amet velit.
+        Suspendisse id sem consectetuer libero luctus adipiscing.
+EOT;
+
+    return app(ParsedownExtra::class)->text($text);
+
+    });
 });

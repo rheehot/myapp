@@ -20,4 +20,10 @@ class Article extends Model
     {
         return $this->belongsToMany(Tag::class);
     }
+
+    public function getContentAttribute($value)
+    {
+        return app(\ParsedownExtra::class)->text($value);
+    }
+
 }
