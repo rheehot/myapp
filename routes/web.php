@@ -119,6 +119,14 @@ Route::auth();
 Route::get('/home', 'HomeController@index');
 Route::resource('articles', 'ArticlesController');
 
+// Route::get('/docs/{file}', function ($file) {
+//        $text = (new App\Documentation)->get($file);
+//
+//        return app(ParsedownExtra::class)->text($text);
+//
+//  });
+
+Route::get('/docs/{file?}', 'DocsController@show');
 
 Route::get('mail', function () {
     $article = App\Article::with('user')->find(1);
@@ -174,10 +182,4 @@ Route::get('mail', function () {
 //        Suspendisse id sem consectetuer libero luctus adipiscing.
 //EOT;
 
- Route::get('/docs/{file}', function ($file) {
-        $text = (new App\Documentation)->get($file);
-
-        return app(ParsedownExtra::class)->text($text);
-
-  });
 });
