@@ -2,30 +2,62 @@
 
 namespace App\Http\Controllers;
 
+use App\Article;
+use App\Http\Requests\ArticlesRequest;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use File;
 
 class ArticlesController extends Controller
 {
     /**
+     * ArticlesController constructor.
+     */
+    public function __construct()
+    {
+//        parent::__construct();
+
+        $this->middleware('auth', ['except' => ['index', 'show']]);
+    }
+
+    /**
+     * Specify the tags for caching.
+     *
+     * @return string
+     */
+    public function cacheTags()
+    {
+        return 'articles';
+    }
+
+    /**
      * Display a listing of the resource.
      *
+     * @param \Illuminate\Http\Request $request
+     * @param string|null $slug
      * @return \Illuminate\Http\Response
      */
-    public function index()
-    {
-//        return __METHOD__ . '은(는) Article 컬렉션을 조회합니다.';
+    public function index(Request $request, $slug = null) {
+        $cacheKey = cache_key('articles.index');
 
-//        $articles = \App\Article::with('user')->get();
+        $query = $slug
+            ? \App\Tag::whereSlug($slug)->firstOrFail()->articles()
+            : new Article;
 
-//        $articles = \App\Article::get();
-//        $articles->load('user');
+        $query = $query->orderBy(
+            $request->input('sort', 'created_at'),
+            $request->input('order', 'desc')
+        );
 
-        $articles = \App\Article::latest()->paginate(3);
+        if ($keyword = request()->input('q')) {
+            $raw = 'MATCH(title,content) AGAINST(? IN BOOLEAN MODE)';
+            $query = $query->whereRaw($raw, [$keyword]);
+        }
 
-//        dd(view('articles.index', compact('articles'))->render());
+        $articles = $this->cache($cacheKey, 5, $query, 'paginate', 3);
 
-        return view('articles.index', compact('articles'));
-
+        return $this->respondCollection($articles, $cacheKey);
     }
 
     /**
@@ -35,111 +67,183 @@ class ArticlesController extends Controller
      */
     public function create()
     {
-//        return __METHOD__ . '은(는) Article 컬렉션을 만들기 위함 폼을 담은 뷰를 반환합니다.';
-        return view('articles.create');
+        $article = new Article;
 
+        return view('articles.create', compact('article'));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param \App\Http\Requests\ArticlesRequest|\Illuminate\Http\Request $request
+     * @param \App\Http\Requests\ArticlesRequest $request
      * @return \Illuminate\Http\Response
      */
-//    public function store(Request $request)
-    public function store(\App\Http\Requests\ArticlesRequest $request)
-    {
-//        return __METHOD__ . '은(는) 사용자의 입력한 폼 데이터로 새로운 Article 컬렉션을 만듭니다.';
-//        $rules = [
-//            'title'   => ['required'],
-//            'content' => ['required', 'min:10'],
-//        ];
-//
-//        $messages = [
-//            'title.required' => '제목은 필수 입력 항목입니다.',
-//            'content.required' => '본문은 필수 입력 항목입니다.',
-//            'content.min' => '본문은 최소 :min 글자 이상이 필요합니다.',
-//        ];
-//
-//        $validator = \Validator::make($request->all(), $rules, $messages);
-//
-//        if ($validator->fails()) {
-//            return back()->withErrors($validator)->withInput();
-//        }
-//
-//        $this->validate($request, $rules, $messages);
+    public function store(ArticlesRequest $request) {
+        $user = $request->user();
 
-        $article = \App\User::find(1)->articles()->create($request->all());
+        $article = $user->articles()->create(
+            $request->getPayload()
+        );
 
         if (! $article) {
-            return back()->with('flash_message', '글이 저장되지 않았습니다.')->withInput();
+            flash()->error(
+                trans('forum.articles.error_writing')
+            );
+
+            return back()->withInput();
         }
 
-//        var_dump('이벤트를 던집니다.');
-////        event('article.created', [$article]);
-//          event(new \App\Events\ArticleCreated($article));
-//        var_dump('이벤트를 던졌습니다.');
+        // 태그 싱크
+        $article->tags()->sync($request->input('tags'));
 
-//        var_dump('이벤트를 던집니다.');
-//        event(new \App\Events\ArticleCreated($article));
-//        var_dump('이벤트를 던졌습니다.');
-//
-//        event(new \App\Events\ArticlesEvent($article));
+        // 첨부파일 연결
+        $request->getAttachments()->each(function ($attachment) use ($article) {
+            $attachment->article()->associate($article);
+            $attachment->save();
+        });
 
-        return redirect(route('articles.index'))->with('flash_message', '작성하신 글이 저장되었습니다.');
+        event(new \App\Events\ArticlesEvent($article));
+        event(new \App\Events\ModelChanged(['articles']));
 
+        return $this->respondCreated($article);
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Article $article)
     {
-        // return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 조회합니다.:' . $id;
-        //        echo $foo;
+        if (! is_api_domain()) {
+            $article->view_count += 1;
+            $article->save();
+        }
 
-        $article = \App\Article::findOrFail($id);
-//                dd($article);
-//                return $article->toArray();
-//        debug($article->toArray());
-        return view('articles.show', compact('article'));
+        $comments = $article->comments()
+            ->with('replies')
+            ->withTrashed()
+            ->whereNull('parent_id')
+            ->latest()->get();
+
+        return $this->respondInstance($article, $comments);
     }
 
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit(Article $article)
     {
-        return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 수정하기 위한 폼을 담은 뷰를 반환합니다.:' . $id;
+        $this->authorize('update', $article);
+
+        return view('articles.edit', compact('article'));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param \App\Http\Requests\ArticlesRequest $request
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(ArticlesRequest $request, Article $article)
     {
-        return __METHOD__ . '은(는) 사용자의 입력한 폼 데이터로 다음 기본 키를 가진 Article 모델을 수정합니다.:' . $id;
+        $this->authorize('update', $article);
+
+        $payload = array_merge($request->all(), [
+            'notification' => $request->has('notification'),
+        ]);
+
+        $article->update($payload);
+        $article->tags()->sync($request->input('tags'));
+
+        event(new \App\Events\ModelChanged(['articles']));
+        flash()->success(
+            trans('forum.articles.success_updating')
+        );
+
+        return $this->respondUpdated($article);
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(Article $article)
     {
-        return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 삭제합니다.:' . $id;
+        $this->authorize('delete', $article);
+
+        $this->deleteAttachments($article->attachments);
+
+        $article->delete();
+
+        event(new \App\Events\ModelChanged(['articles']));
+
+        return response()->json([], 204, [], JSON_PRETTY_PRINT);
+    }
+
+    public function deleteAttachments(Collection $attachments)
+    {
+        $attachments->each(function ($attachment) {
+            $filePath = attachments_path($attachment->filename);
+
+            if (File::exists($filePath)) {
+                File::delete($filePath);
+            }
+
+            return $attachment->delete();
+        });
+    }
+
+    /* Response Methods */
+
+    /**
+     * @param \Illuminate\Contracts\Pagination\LengthAwarePaginator $articles
+     * @param string|null $cacheKey
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     */
+    protected function respondCollection(LengthAwarePaginator $articles, $cacheKey = null)
+    {
+        return view('articles.index', compact('articles'));
+    }
+
+    /**
+     * @param $article
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    protected function respondCreated($article)
+    {
+        flash()->success(
+            trans('forum.articles.success_writing')
+        );
+
+        return redirect(route('articles.show', $article->id));
+    }
+
+    /**
+     * @param \App\Article $article
+     * @param \Illuminate\Database\Eloquent\Collection $comments
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     */
+    protected function respondInstance(Article $article, Collection $comments)
+    {
+        return view('articles.show', compact('article', 'comments'));
+    }
+
+    /**
+     * @param \App\Article $article
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    protected function respondUpdated(Article $article)
+    {
+        flash()->success(trans('forum.articles.success_updating'));
+
+        return redirect(route('articles.show', $article->id));
     }
 }

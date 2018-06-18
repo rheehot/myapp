@@ -126,6 +126,13 @@ Route::resource('articles', 'ArticlesController');
 //
 //  });
 
+/* 아티클 */
+Route::resource('articles', 'ArticlesController');
+Route::get('tags/{slug}/articles', [
+    'as' => 'tags.articles.index',
+    'uses' => 'ArticlesController@index',
+]);
+
 Route::get('/docs/{file?}', 'DocsController@show');
 
 Route::get('mail', function () {
