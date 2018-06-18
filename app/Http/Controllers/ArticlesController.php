@@ -7,25 +7,23 @@ use Illuminate\Http\Request;
 class ArticlesController extends Controller
 {
     /**
+     * ArticlesController constructor.
+     */
+    public function __construct()
+    {
+        $this->middleware('auth', ['except' => ['index', 'show']]);
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
      */
     public function index()
     {
-//        return __METHOD__ . '은(는) Article 컬렉션을 조회합니다.';
-
-//        $articles = \App\Article::with('user')->get();
-
-//        $articles = \App\Article::get();
-//        $articles->load('user');
-
         $articles = \App\Article::latest()->paginate(3);
 
-//        dd(view('articles.index', compact('articles'))->render());
-
         return view('articles.index', compact('articles'));
-
     }
 
     /**
@@ -35,111 +33,85 @@ class ArticlesController extends Controller
      */
     public function create()
     {
-//        return __METHOD__ . '은(는) Article 컬렉션을 만들기 위함 폼을 담은 뷰를 반환합니다.';
-        return view('articles.create');
+        $article = new \App\Article;
 
+        return view('articles.create', compact('article'));
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param \App\Http\Requests\ArticlesRequest|\Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-//    public function store(Request $request)
     public function store(\App\Http\Requests\ArticlesRequest $request)
     {
-//        return __METHOD__ . '은(는) 사용자의 입력한 폼 데이터로 새로운 Article 컬렉션을 만듭니다.';
-//        $rules = [
-//            'title'   => ['required'],
-//            'content' => ['required', 'min:10'],
-//        ];
-//
-//        $messages = [
-//            'title.required' => '제목은 필수 입력 항목입니다.',
-//            'content.required' => '본문은 필수 입력 항목입니다.',
-//            'content.min' => '본문은 최소 :min 글자 이상이 필요합니다.',
-//        ];
-//
-//        $validator = \Validator::make($request->all(), $rules, $messages);
-//
-//        if ($validator->fails()) {
-//            return back()->withErrors($validator)->withInput();
-//        }
-//
-//        $this->validate($request, $rules, $messages);
-
-        $article = \App\User::find(1)->articles()->create($request->all());
+        $article = $request->user()->articles()->create($request->all());
 
         if (! $article) {
-            return back()->with('flash_message', '글이 저장되지 않았습니다.')->withInput();
+            flash()->error('작성하신 글을 저장하지 못했습니다.');
+
+            return back()->withInput();
         }
 
-//        var_dump('이벤트를 던집니다.');
-////        event('article.created', [$article]);
-//          event(new \App\Events\ArticleCreated($article));
-//        var_dump('이벤트를 던졌습니다.');
+        event(new \App\Events\ArticlesEvent($article));
+        flash()->success('작성하신 글을 저장했습니다.');
 
-//        var_dump('이벤트를 던집니다.');
-//        event(new \App\Events\ArticleCreated($article));
-//        var_dump('이벤트를 던졌습니다.');
-//
-//        event(new \App\Events\ArticlesEvent($article));
-
-        return redirect(route('articles.index'))->with('flash_message', '작성하신 글이 저장되었습니다.');
-
+        return redirect(route('articles.show', $article->id));
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(\App\Article $article)
     {
-        // return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 조회합니다.:' . $id;
-        //        echo $foo;
-
-        $article = \App\Article::findOrFail($id);
-//                dd($article);
-//                return $article->toArray();
-//        debug($article->toArray());
         return view('articles.show', compact('article'));
     }
 
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param \App\Article $article
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
+    public function edit(\App\Article $article)
     {
-        return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 수정하기 위한 폼을 담은 뷰를 반환합니다.:' . $id;
+        $this->authorize('update', $article);
+
+        return view('articles.edit', compact('article'));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param \App\Http\Requests\ArticlesRequest $request
+     * @param \App\Article                       $article
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(\App\Http\Requests\ArticlesRequest $request, \App\Article $article)
     {
-        return __METHOD__ . '은(는) 사용자의 입력한 폼 데이터로 다음 기본 키를 가진 Article 모델을 수정합니다.:' . $id;
+        $article->update($request->all());
+        flash()->success('수정하신 내용을 저장했습니다.');
+
+        return redirect(route('articles.show', $article->id));
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Article             $article
      * @return \Illuminate\Http\Response
+     * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy(Request $request, \App\Article $article)
     {
-        return __METHOD__ . '은(는) 다음 기본 키를 가진 Article 모델을 삭제합니다.:' . $id;
+        $this->authorize('update', $article);
+        $article->delete();
+
+        return response()->json([], 204);
     }
 }

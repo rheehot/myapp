@@ -8,7 +8,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 
 class UsersEventListener
 {
-
     /**
      * @var \Illuminate\Contracts\Mail\Mailer
      */
@@ -17,15 +16,25 @@ class UsersEventListener
     /**
      * Create the event listener.
      *
-     * @return void
-     *      * @param \Illuminate\Contracts\Mail\Mailer $mailer
+     * @param \Illuminate\Contracts\Mail\Mailer $mailer
      */
-//    public function __construct()
     public function __construct(\Illuminate\Contracts\Mail\Mailer $mailer)
     {
         $this->mailer = $mailer;
     }
 
+    /**
+     * Handle the event.
+     *
+     * @param  Login  $event
+     * @return void
+     */
+    public function handle(Login $event)
+    {
+        $event->user->last_login = \Carbon\Carbon::now();
+
+        return $event->user->save();
+    }
 
     /**
      * Register the listeners for the subscriber.
@@ -75,16 +84,5 @@ class UsersEventListener
                 sprintf('[%s] 비밀번호를 초기화하세요.', config('project.name'))
             );
         });
-    }
-
-    /**
-     * Handle the event.
-     *
-     * @param  Login  $event
-     * @return void
-     */
-    public function handle(Login $event)
-    {
-        //
     }
 }

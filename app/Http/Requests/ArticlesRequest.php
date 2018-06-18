@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class ArticlesRequest extends FormRequest
+class ArticlesRequest extends Request
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -54,5 +52,4 @@ class ArticlesRequest extends FormRequest
             'content' => '본문',
         ];
     }
-
 }

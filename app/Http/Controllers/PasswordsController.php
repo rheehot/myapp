@@ -32,9 +32,7 @@ class PasswordsController extends Controller
      */
     public function postRemind(Request $request)
     {
-        $this->validate($request, [
-            'email' => 'required|email|exists:users',
-        ]);
+        $this->validate($request, ['email' => 'required|email|exists:users']);
 
         $email = $request->get('email');
         $token = str_random(64);
@@ -47,18 +45,16 @@ class PasswordsController extends Controller
 
         event(new \App\Events\PasswordRemindCreated($email, $token));
 
-        return $this->respondSuccess(
-            trans('auth.passwords.sent_reminder')
-        );
+        return $this->respondSuccess('비밀번호를 바꾸는 방법을 담은 이메일을 발송했습니다. 메일박스를 확인해 주세요.');
     }
 
     /**
      * Display the password reset view for the given token.
      *
-     * @param string|null $token
+     * @param string $token
      * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
-    public function getReset($token = null)
+    public function getReset($token)
     {
         return view('passwords.reset', compact('token'));
     }
@@ -80,19 +76,12 @@ class PasswordsController extends Controller
         $token = $request->get('token');
 
         if (! \DB::table('password_resets')->whereToken($token)->first()) {
-            return $this->respondError(
-                trans('auth.passwords.error_wrong_url')
-            );
+            return $this->respondError('URL이 정확하지 않습니다.');
         }
 
-        \App\User::whereEmail($request->input('email'))->first()->update([
-            'password' => bcrypt($request->input('password'))
-        ]);
         \DB::table('password_resets')->whereToken($token)->delete();
 
-        return $this->respondSuccess(
-            trans('auth.passwords.success_reset')
-        );
+        return $this->respondSuccess('비밀번호를 바꾸었습니다. 새로운 비밀번호로 로그인하세요.');
     }
 
     /**

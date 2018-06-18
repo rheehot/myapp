@@ -27,9 +27,6 @@ class DocsController extends Controller
      */
     public function show($file = null)
     {
-//        $index = markdown($this->docs->get());
-//        $content = markdown($this->docs->get($file ?: 'installation.md'));
-
         $index = \Cache::remember('docs.index', 120, function() {
             return markdown($this->docs->get());
         });
@@ -40,7 +37,6 @@ class DocsController extends Controller
 
         return view('docs.show', compact('index', 'content'));
     }
-
 
     /**
      * Respond the requested image.
@@ -73,5 +69,4 @@ class DocsController extends Controller
             'Etag' => $genEtag,
         ]);
     }
-
 }

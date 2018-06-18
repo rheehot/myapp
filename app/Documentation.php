@@ -31,6 +31,19 @@ class Documentation
     }
 
     /**
+     * Calculate etag value.
+     *
+     * @param $file
+     * @return string
+     */
+    public function etag($file)
+    {
+        $lastModified = File::lastModified($this->path($file, 'docs/images'));
+
+        return md5($file . $lastModified);
+    }
+
+    /**
      * Generate path of the given file.
      *
      * @param string $file
@@ -43,7 +56,7 @@ class Documentation
         $path = base_path($dir . DIRECTORY_SEPARATOR . $file);
 
         if (! File::exists($path)) {
-            abort(404, trans('docs.messages.not_found'));
+            abort(404, '요청하신 파일이 없습니다.');
         }
 
         return $path;
@@ -58,18 +71,5 @@ class Documentation
     protected function replaceLinks($content)
     {
         return str_replace('/docs/{{version}}', '/docs', $content);
-    }
-
-    /**
-     * Calculate etag value.
-     *
-     * @param $file
-     * @return string
-     */
-    public function etag($file)
-    {
-        $lastModified = File::lastModified($this->path($file, 'docs/images'));
-
-        return md5($file . $lastModified);
     }
 }
