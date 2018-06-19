@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\User;
 use Illuminate\Http\Request;
 
 class UsersController extends Controller
@@ -32,7 +32,8 @@ class UsersController extends Controller
      */
     public function store(Request $request)
     {
-        if ($socialUser = \App\User::socialUser($request->get('email'))->first()) {
+//        if ($socialUser = \App\User::socialUser($request->get('email'))->first()) {
+        if ($socialUser = User::socialUser($request->get('email'))->first()) {
             return $this->updateSocialAccount($request, $socialUser);
         }
 
@@ -47,7 +48,8 @@ class UsersController extends Controller
      */
     public function confirm($code)
     {
-        $user = \App\User::whereConfirmCode($code)->first();
+//        $user = \App\User::whereConfirmCode($code)->first();
+        $user = User::whereConfirmCode($code)->first();
 
         if (! $user) {
             return $this->respondError('URL이 정확하지 않습니다.');
@@ -57,9 +59,11 @@ class UsersController extends Controller
         $user->confirm_code = null;
         $user->save();
 
-        auth()->login($user);
+//        auth()->login($user);
+//        return $this->respondCreated($user->name . '님, 환영합니다. 가입 확인되었습니다.');
 
-        return $this->respondCreated($user->name . '님, 환영합니다. 가입 확인되었습니다.');
+        return $this->responsConfirmed($user);
+
     }
 
     /**
@@ -84,7 +88,8 @@ class UsersController extends Controller
      * @param \App\User $user
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
      */
-    protected function updateSocialAccount(Request $request, \App\User $user)
+//    protected function updateSocialAccount(Request $request, \App\User $user)
+    protected function updateSocialAccount(Request $request, User $user)
     {
         $this->validate($request, [
             'name' => 'required|max:255',
@@ -97,9 +102,11 @@ class UsersController extends Controller
             'password' => bcrypt($request->input('password')),
         ]);
 
-        auth()->login($user);
+//        auth()->login($user);
 
-        return $this->respondCreated($user->name . '님, 환영합니다.');
+//        return $this->respondCreated($user->name . '님, 환영합니다.');
+        return $this->respondUpdated($user);
+
     }
 
     /**
@@ -119,7 +126,8 @@ class UsersController extends Controller
 
         $confirmCode = str_random(60);
 
-        $user = \App\User::create([
+//        $user = \App\User::create([
+        $user = User::create([
             'name' => $request->input('name'),
             'email' => $request->input('email'),
             'password' => bcrypt($request->input('password')),
@@ -128,7 +136,40 @@ class UsersController extends Controller
 
         event(new \App\Events\UserCreated($user));
 
-        return $this->respondCreated('가입하신 메일 계정으로 가입확인 메일을 보내드렸습니다. 가입확인하시고 로그인해 주세요.');
+//        return $this->respondCreated('가입하신 메일 계정으로 가입확인 메일을 보내드렸습니다. 가입확인하시고 로그인해 주세요.');
+        return $this->respondConfirmationEmailSent();
+
+    }
+
+    /**
+     * @param \App\User $user
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    protected function responsConfirmed(User $user)
+    {
+        auth()->login($user);
+        flash(
+            trans('auth.users.info_confirmed', ['name' => $user->name])
+        );
+
+        return redirect(route('home'));
+    }
+
+    /* Response Methods */
+
+    /**
+     * @param \App\User $user
+     * @param null $message
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
+     */
+    protected function respondSuccess(User $user, $message = null)
+    {
+        auth()->login($user);
+        flash($message);
+
+        return ($return = request('return'))
+            ? redirect(urldecode($return))
+            : redirect()->intended();
     }
 
     /**
@@ -137,10 +178,21 @@ class UsersController extends Controller
      * @param string $message
      * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
      */
-    protected function respondCreated($message)
+//    protected function respondCreated($message)
+    protected function respondUpdated(User $user)
     {
-        flash($message);
+//        flash($message);
+        return $this->respondSuccess(
+            $user,
+            trans('auth.users.info_welcome', ['name' => $user->name])
+        );
+    }
 
-        return redirect('/');
+    protected function respondConfirmationEmailSent()
+    {
+        flash(trans('auth.users.info_confirmation_sent'));
+
+//        return redirect('/');
+        return redirect(route('root'));
     }
 }

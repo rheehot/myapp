@@ -16,3 +16,18 @@ use Illuminate\Http\Request;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::group([
+    'domain' => config('project.api_domain'),
+    'namespace' => 'Api',
+    'as' => 'api.',
+    'middleware' => ['cors']
+], function () {
+    /* api.v1 */
+    Route::group([
+        'prefix' => 'v1',
+        'namespace' => 'v1',
+        'as' => 'v1.'],
+        function(){
+        });
+});

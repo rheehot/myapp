@@ -18,7 +18,7 @@ class ArticlesController extends Controller
     {
 //        parent::__construct();
 
-        $this->middleware('auth', ['except' => ['index', 'show']]);
+        $this->middleware('auth', ['except' => ['index', 'show', 'tags']]);
     }
 
     /**
@@ -122,10 +122,10 @@ class ArticlesController extends Controller
         }
 
         $comments = $article->comments()
-            ->with('replies')
-            ->withTrashed()
-            ->whereNull('parent_id')
-            ->latest()->get();
+        ->with('replies')
+        ->withTrashed()
+        ->whereNull('parent_id')
+        ->latest()->get();
 
         return $this->respondInstance($article, $comments);
     }
